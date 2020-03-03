@@ -1,0 +1,11 @@
+﻿MOUSE HANDLING
+
+Left mouse button rotates the model in X and Y.
+
+Right mouse button translates the model in X and Y.
+
+Left and Right button down simultaneously rotates around the Z axis.
+
+Mouse wheel zooms in and out.
+
+

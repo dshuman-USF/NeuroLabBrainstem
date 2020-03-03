@@ -1,0 +1,187 @@
+2019-11-01  dshuman@usf.edu
+
+	* Makefile.am: move up from  g++14 to g++17
+
+2018-12-06  dshuman@health.usf.edu
+
+	* brainstem.desktop: fix this to point to the real locations of files.
+
+2018-10-25  dshuman@health.usf.edu
+
+	* brain_impl.cpp: mods to support lareflex CTHs.
+	* debian/control: bump up dendency on cth_cluster to current version,
+	1.3.14.
+	* configure.ac: bump to version 1.1.12
+
+2018-09-20  dshuman@health.usf.edu
+
+	* brainstem.h: add in support for lareflex periods.
+	* brain_impl.cpp: ditto.
+	* configure.ac: bump to 1.1.11
+
+2018-04-27  dshuman@health.usf.edu
+
+	* brain_impl.cpp: add in check for flat "type" (400) and not treat it as an
+	archetype.
+	* configure.ac: bump up to 1.1.10.
+
+2018-03-12  dshuman@health.usf.edu
+
+	* brain_impl.cpp: add in check for cells at origin, which means no
+	stereotaxic coordinates, so don't plot them.
+
+2018-02-22  dshuman@health.usf.edu
+
+	* brainstemgl.cpp: Major rewrite of how the OIT buffers are managed. I
+	think cramming a float into a byte caused incorrect rendering when zooming
+	in, because all the fragments were rounded down to the same value. Used the
+	glslcookbook method.
+	* brainstemgl.glsl: and, ditto.
+
+2018-02-21  dshuman@health.usf.edu
+
+	* brainstemgl.h: Mods to conform to changes to new libglm-dev package.
+	Files renamed and moved.
+	* stem2gl.cpp: libglm-dev ditto.
+
+2018-02-16  dshuman@health.usf.edu
+
+	* brainstemgl.glsl: Discover that the new sorting code sorts fragments in
+	the wrong order, so things in back are in front. Fix it, then discover that
+	a merge sort is even faster. I left the other sort code in the file,
+	commented out.
+
+2018-01-03  dshuman@health.usf.edu
+
+	* brainstem.h: add in support for swallow1 cths.
+
+2017-10-26  dshuman@health.usf.edu
+
+	* debian/postinst.template: Move old tar file to /lab/SOURCES/old.
+
+2017-08-31  dshuman@health.usf.edu
+
+	* brainstem.pro: need to add in -std=c++14 explicitly for the mxe build
+	environment.
+
+2017-08-01  dshuman@health.usf.edu
+
+	* brain_impl.cpp: fix bug where .csv files with no cths causes crash.
+	* configure.ac: bump to 1.1.8.
+
+2017-07-26  dshuman@health.usf.edu
+
+	* configure.ac: bumpt o 1.1.7 for new release.
+	* brainstem.ui: On some systems, the font is too large, overflowed the
+	buttons. Adjust the gui so the window resize makes the buttons bigger, and
+	also allow a bigger resize (don't know why I limited the left control
+	window to be 600 pixels.)
+
+2017-06-29  dshuman@health.usf.edu
+
+	* brainstemgl.glsl: experiment with different sorting algorithms. Change
+	from bubble sort to insert sort. A bit faster.
+
+2017-06-27  dshuman@health.usf.edu
+
+	* brainstemgl.cpp: move the shader code to its own file so syntax
+	highlighting would work, plus, helps unclutter this file.
+	* brainstemgl.glsl: moved the shader code from the above file to here. New
+	file.
+	* Makefile.am: Add above file to srcs list.
+
+2017-06-16  dshuman@health.usf.edu
+
+	* brain_impl.cpp: 
+	* brainstemgl.cpp: Redo how movies are made. Let brain_impl, not brainstemgl
+	decide when to grab a new frame. I was grabbing the same frame twice in
+	some cases. Video seems a bit smoother now. Also add ability to make a
+	movie with no spin or twinkle. Display a movie time now, not # of frames.
+
+
+2017-06-07  dshuman@health.usf.edu
+
+	* brain_impl.cpp: Force opengl framebuffer to be even W and H. I was
+	telling the ffmpeg program to scale the FB after the fact, which resulted
+	in a somewhat blurry image in .wmv movies.
+	Also pass just file name to movie saving function, so we don't get
+	ever-increasing .wmv and .avi extensions.
+	* brainstemgl.cpp: Remove scaling args to the ffmpeg command line for .wmv
+	files.
+
+2017-04-21  dshuman@health.usf.edu
+
+	* brain_impl.cpp: Add in support for archetype clustering. New .csv file
+	format is supported, previous format is still supported.
+	* brainstem.h: Support for archetype clustering files.
+
+2017-03-23  dshuman@health.usf.edu
+
+	* configure.ac: bump to 1.1.5.
+
+2017-02-08  dshuman@health.usf.edu
+
+	* brain_impl.cpp: Add in saving and restoring figure settings by filename
+	to support creating documents. Kind of like style sheets. Add in jitter for
+	.dx files.
+	* configure.ac: version 1.1.4.
+	* brainstemgl.cpp: Support of saving and restoring figure settings, see
+	above.
+
+2017-01-25  dshuman@health.usf.edu
+
+	* brain_impl.cpp: don't let animate timer be 0, movies fail to save.
+
+2017-01-24  dshuman@health.usf.edu
+
+	* brainstemgl.cpp: Fix bug in making .wmv file, window w/h must be
+	multiples of 2.
+
+2017-01-11  dshuman@health.usf.edu
+
+	* brain_impl.cpp: Fix a crash problem with bad .dx files. Now just refuse
+	to load them.
+	* configure.ac: bump to 1.1.3.
+
+2017-01-05  dshuman@health.usf.edu
+
+	* debian/control: Remove dependency and qt5-style-plugins. If this is
+	present, the GUI is horrible. Prevously, you needed it with Qt 5.6 because
+	without it, the GUI was horrible. Qt 5.7 showed up recently, and now things
+	break differently.
+	* configure.ac: bump to 1.1.2 for new release.
+
+2016-12-14  dshuman@health.usf.edu
+
+	* Version 1.1.1 release.
+	* Makefile.am: add rule so Makefile.qt, which is only used by qtcreator
+	while debugging, picks up VERSION var.
+
+2016-12-13  dshuman@health.usf.edu
+
+	* debian/control: Add ffmpeg as a dependency.
+	* configure.ac: bump to 1.1.1.
+
+2016-12-09  dshuman@health.usf.edu
+
+	* configure.ac: release of v 1.1.0
+
+2016-08-03  dshuman@health.usf.edu
+
+	* brainstemgl.cpp: limit the opengl widget to the max framebuffer size.
+	Can hit the limit on 4K or multiple monitors.
+
+2016-06-16  dshuman@health.usf.edu
+
+	* sphere.c: create in blender, like so:
+	create cube
+	subdivide 2 times
+	mesh -> transform -> sphere, drag mouse to make sphere
+	object mode add modifier triangulate
+	smooth
+	export as .obj, Y forward, Z up, export as objs, keep vertex 
+	order other options off
+	Then use obj2c to create sphere.c
+
+
+

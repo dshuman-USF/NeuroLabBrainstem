@@ -1,0 +1,45 @@
+
+Fri Aug 19 09:45:31 EDT 2016
+We use the MXE cross-compile environment to build a version of brainstem that
+will run on windows.
+
+(1) Get MXE
+Decide where to put it.  /opt is a good choice.
+You need write permission in /opt. Type this:
+
+cd /opt
+git clone https://github.com/mxe/mxe.git
+
+[added]
+to update to current versions, clone won't work. use this:
+
+git pull origin master
+
+(2) Build MXE and packages we need for brainstem
+To build for creating 64-bit executables, type this:
+
+cd /opt/mxe 
+make MXE_TARGETS=x86_64-w64-mingw32.static qtbase
+make MXE_TARGETS=x86_64-w64-mingw32.static glm
+
+If you make qt instead of qtbase, quite a lot more gets built.
+You can pick what subsets to build if you want.
+
+(4) Set up path to mxe executables
+Add this to your .bashrc file, or the .rc file for your shell of choice.
+export PATH=/opt/mxe/usr/bin:$PATH
+
+(5) Create the Makefile
+cd to where your Qt sources and .pro file is. For the brainstem sources, run
+this:
+
+x86_64-w64-mingw32.static-qmake-qt5 brainstem.pro -r -spec win32-g++
+This will create Makefile_win.qt.
+
+(6) Build brainstem.exe, like so:
+
+make -f Makefile_win.qt
+or
+make brainstem.exe
+
+

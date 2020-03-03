@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=brainstem
+Exec=/usr/local/bin/brainstem
+Icon=/usr/local/share/brainstem/brainstem.png
+Terminal=false

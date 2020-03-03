@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>brainstem.png</file>
+        <file>phrenic_scaled_norm_transp_b.png</file>
+        <file>phrenic_scaled_norm_transp_w.png</file>
+        <file>phrenic_scaled_norm_transp_green.png</file>
+        <file>nophrenic_transp.png</file>
+    </qresource>
+</RCC>

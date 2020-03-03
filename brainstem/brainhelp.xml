@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<root ptr="0x41f49e0" id="0" symbol="11SwRootFrame" lower="1">
+ <shells>
+  <swCursorShell>
+   <swViewShell/>
+   <m_pCurrentCursor>
+    <swPaM>
+     <point>
+      <swPosition nNode="19" nContent="0"/>
+     </point>
+    </swPaM>
+   </m_pCurrentCursor>
+  </swCursorShell>
+ </shells>
+ <infos>
+  <bounds left="284" top="284" width="14095" height="15840"/>
+  <prtBounds left="0" top="0" width="14095" height="15840"/>
+ </infos>
+ <page ptr="0x7fc040011000" id="1" symbol="11SwPageFrame" upper="0" lower="2">
+  <infos>
+   <bounds left="2139" top="284" width="12240" height="15840"/>
+   <prtBounds left="1134" top="1134" width="9972" height="13572"/>
+  </infos>
+  <body ptr="0x7fc01e38d000" id="2" symbol="11SwBodyFrame" upper="1" lower="3">
+   <infos>
+    <bounds left="3273" top="1418" width="9972" height="13572"/>
+    <prtBounds left="0" top="0" width="9972" height="13572"/>
+   </infos>
+   <txt ptr="0x7fc040014000" id="3" symbol="11SwTextFrame" next="18" upper="2" txtNodeIndex="9">
+    <infos>
+     <bounds left="3273" top="1418" width="9972" height="331"/>
+     <prtBounds left="0" top="0" width="9972" height="331"/>
+    </infos>
+MOUSE HANDLING    <Special nLength="0" nType="POR_MARGIN" rText="" nWidth="3728"/>
+    <Text nLength="14" nType="POR_TXT" nHeight="331" nWidth="2517"/>
+    <Special nLength="0" nType="POR_MARGIN" rText="" nWidth="3728"/>
+    <LineBreak nWidth="9973"/>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014528" id="18" symbol="11SwTextFrame" next="15" prev="3" upper="2" txtNodeIndex="10">
+    <infos>
+     <bounds left="3273" top="1749" width="9972" height="331"/>
+     <prtBounds left="0" top="0" width="9972" height="331"/>
+    </infos>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014210" id="15" symbol="11SwTextFrame" next="20" prev="18" upper="2" txtNodeIndex="11">
+    <infos>
+     <bounds left="3273" top="2080" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+Left mouse button rotates the model in X and Y.    <Text nLength="47" nType="POR_PARA" nHeight="310" nWidth="5348"/>
+    <LineBreak nWidth="5348"/>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014738" id="20" symbol="11SwTextFrame" next="19" prev="15" upper="2" txtNodeIndex="12">
+    <infos>
+     <bounds left="3273" top="2390" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014630" id="19" symbol="11SwTextFrame" next="23" prev="20" upper="2" txtNodeIndex="13">
+    <infos>
+     <bounds left="3273" top="2700" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+Right mouse button translates the model in X and Y.    <Text nLength="51" nType="POR_PARA" nHeight="310" nWidth="5859"/>
+    <LineBreak nWidth="5859"/>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014318" id="23" symbol="11SwTextFrame" next="22" prev="19" upper="2" txtNodeIndex="14">
+    <infos>
+     <bounds left="3273" top="3010" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014948" id="22" symbol="11SwTextFrame" next="25" prev="23" upper="2" txtNodeIndex="15">
+    <infos>
+     <bounds left="3273" top="3320" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+Left and Right button simultaneously rotates around the Z axis.    <Text nLength="63" nType="POR_PARA" nHeight="310" nWidth="7113"/>
+    <LineBreak nWidth="7113"/>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014a50" id="25" symbol="11SwTextFrame" next="24" prev="22" upper="2" txtNodeIndex="16">
+    <infos>
+     <bounds left="3273" top="3630" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014840" id="24" symbol="11SwTextFrame" next="29" prev="25" upper="2" txtNodeIndex="17">
+    <infos>
+     <bounds left="3273" top="3940" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+Mouse wheel zooms in and out.    <Text nLength="29" nType="POR_PARA" nHeight="310" nWidth="3454"/>
+    <LineBreak nWidth="3454"/>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014b58" id="29" symbol="11SwTextFrame" next="28" prev="24" upper="2" txtNodeIndex="18">
+    <infos>
+     <bounds left="3273" top="4250" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+    <Finish/>
+   </txt>
+   <txt ptr="0x7fc040014c60" id="28" symbol="11SwTextFrame" prev="29" upper="2" txtNodeIndex="19">
+    <infos>
+     <bounds left="3273" top="4560" width="9972" height="310"/>
+     <prtBounds left="0" top="0" width="9972" height="310"/>
+    </infos>
+    <Finish/>
+   </txt>
+  </body>
+ </page>
+</root>
