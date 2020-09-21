@@ -90,7 +90,6 @@ int main(int argc, char** argv)
    int obj_count = 0;
    QStringList comp_pos, comp_color;
    QStringList shape, field, position, connection;
-   QStringList::const_iterator f_iter, p_iter, cn_iter, co_iter;
    QStringList rec;
    QString p_row, c_row;
    QStringList p_fields, cn_fields, d_fields, co_fields;
@@ -192,7 +191,6 @@ int main(int argc, char** argv)
    QStringList data  = rows.filter(QRegExp("^component \"data\" value.+"));
    QStringList color = rows.filter(QRegExp("^component \"colors\" value.+"));
 
-   QStringList::const_iterator fld_iter, pos_iter, conn_iter, data_iter, color_iter;
    int num_fld   = fld.size();
    int num_pos  = pos.size();
    int num_conn = conn.size();
@@ -205,11 +203,11 @@ int main(int argc, char** argv)
       exit(1);
    }
 
-   fld_iter = fld.begin();
-   pos_iter = pos.begin();
-   data_iter = data.begin();
-   conn_iter = conn.begin();
-   color_iter = color.begin();
+   QStringList::const_iterator fld_iter = fld.cbegin();
+   QStringList::const_iterator pos_iter = pos.cbegin();
+   QStringList::const_iterator data_iter = data.cbegin();
+   QStringList::const_iterator conn_iter = conn.cbegin();
+   QStringList::const_iterator color_iter = color.cbegin();
 
    for (int rows = 0; rows < num_fld; ++rows, ++fld_iter, ++pos_iter, ++data_iter, ++conn_iter)
    {
@@ -282,8 +280,8 @@ int main(int argc, char** argv)
       conn_item = connection.at(conn_items).toInt();
       ++pos_index;
       ++conn_index;
-      p_iter = rows.begin()+pos_index;
-      cn_iter = rows.begin()+conn_index;
+      QStringList::const_iterator p_iter = rows.cbegin() + pos_index;
+      QStringList::const_iterator cn_iter = rows.cbegin() + conn_index;
 
        // start/continue  building output file
       if (doing_skin)

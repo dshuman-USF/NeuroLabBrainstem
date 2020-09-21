@@ -30,6 +30,7 @@ This file is part of the USF Brainstem Data Visualization suite.
 #include <QOpenGLExtraFunctions>
 #include "brainstemgl.glsl"
 
+using namespace std;
 
 extern bool Debug;
 extern "C" {
@@ -1032,13 +1033,17 @@ void BrainStemGL::oit()
 // Two cases
 //   new file - clear all the old stuff out and build new gl stuff
 //   on_off  -   only show selected on_off_vals
-void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vector<int>& on_off_vals, vector<int>& exp_on_off, cellArray& dispCells, ClustRGB& rgbClustMap, bool have_phrenic)
+void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, 
+                 vector<int>& on_off_vals, vector<int>& exp_on_off, 
+                 cellArray& dispCells, ClustRGB& rgbClustMap, bool have_phrenic)
 {
    int curr_bin, curr_clust, coloridx;
    size_t rows;
    GLuint  newVao;
    size_t  c_coord_bytes, s_coord_bytes, d_coord_bytes;
+   size_t  csib_coord_bytes, ssib_coord_bytes;
    size_t  c_color_bytes, s_color_bytes, d_color_bytes;
+   size_t  csib_color_bytes, ssib_color_bytes;
    size_t set;
    size_t tot_vaos;
    double normval;
@@ -1050,14 +1055,18 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
    array <colorIdx,NUM_CELL_COLORS> cthColorIdx;
    CTHIter cthiter;
    CellIter citer, citerctl, citerstim, citerdelta;
+   CellIter citerctlsib, citerstimsib;
    bool have_ctl = false;
    bool have_stim = false;
+   bool have_ctrlsibs = false;
+   bool have_stimsibs = false;
    ClusterIter cell;
    GLenum err_chk;
    GLuint sphere_pt_vbo, sphere_norm_vbo;
    GLuint ctl_pt_vbo, ctl_color_vbo;
    GLuint stim_pt_vbo, stim_color_vbo;
    GLuint delta_pt_vbo, delta_color_vbo;
+   GLuint csib_pt_vbo, csib_color_vbo, ssib_pt_vbo, ssib_color_vbo;
    QString msg;
    int num_clusts = on_off_vals.size();
 
@@ -1066,8 +1075,8 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
    havePhrenic = have_phrenic;
    if (haveDelta)              // add fake checkbox at end for delta CTHs
       onOff.push_back(true);
-   c_coord_bytes=s_coord_bytes=d_coord_bytes=0;
-   c_color_bytes=s_color_bytes=d_color_bytes=0;
+   c_coord_bytes=s_coord_bytes=d_coord_bytes=csib_coord_bytes=ssib_coord_bytes=0;
+   c_color_bytes=s_color_bytes=d_color_bytes=csib_color_bytes=ssib_color_bytes=0;
 
    if (new_file || exp_chg) // must (re) build vaos 
    {
@@ -1081,13 +1090,18 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
          // We currently only support files with just control periods,
          // or ctl/stim periods for one type of stim. We assume the loader
          // has checked for this and will not call us if there are no 
-         // or too many periods.
+         // or too many periods. Delta, ctrlsib and stimsib lists are
+         // created synthetically.
       int ctl_bins = 0;
       int stim_bins = 0;
       if (dispCells[CONTROL_COLORS].size())
          have_ctl = true;
       if (dispCells[STIM_COLORS].size())
          have_stim = true;
+      if (dispCells[CTRLSIB_COLORS].size())
+         have_ctrlsibs = true;
+      if (dispCells[STIMSIB_COLORS].size())
+         have_stimsibs = true;
 
       if (have_ctl)
       {
@@ -1103,7 +1117,7 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
       }
    
       numBins = max(ctl_bins,stim_bins);  // really should be same if we have both
-      tot_vaos=numBins+1;  // 1 vao for base color and bins (if any)
+      tot_vaos = numBins+1;  // 1 vao for base color and bins (if any)
       currCycle = 0;
       if (numBins)
          phrenicStep = double(PHRENIC_E_END - PHRENIC_I_START)/numBins;
@@ -1199,8 +1213,73 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
             }
          }
 
+         if (have_ctrlsibs)
+         {
+             // ctrl -> stim sib
+            citerctlsib = dispCells[CTRLSIB_COLORS].find(curr_clust);
+            if (citerctlsib != dispCells[CTRLSIB_COLORS].end())
+            {
+               for (cell=citerctlsib->second.begin(); cell != citerctlsib->second.end(); ++cell)
+               {
+                  if (cell->rl == 0.0 && cell->dp == 0.0 && cell->ap == 0.0)
+                     continue;
+                  if ((exp_on_off.size() == 0) || exp_on_off[cell->expidx])
+                  {
+                     cthCoords[CTRLSIB_PTS].push_back(glm::vec3(cell->rl, -cell->dp, -cell->ap));
+                       // index of brightest color for this cluster
+                     cthColorIdx[CTRLSIB_COLORS][0].push_back(cell->coloridx*COLOR_STEPS);
+                  }
+               }
+                  // optional bin colors
+               for (curr_bin=0,rows = 1; rows <= numBins; ++curr_bin,++rows)
+               {
+                  for (ClusterIter normiter=citerctlsib->second.begin(); normiter != citerctlsib->second.end(); ++normiter)
+                  {
+                     normval = normiter->normCth[curr_bin];
+                     coloridx = floor((COLOR_STEPS-1) - (normval*(COLOR_STEPS-1)));
+                     if (coloridx >= COLOR_STEPS) // handle zero case
+                         coloridx = COLOR_STEPS-1;
+                     coloridx += COLOR_STEPS * normiter->coloridx; // offset into table
+                     cthColorIdx[CTRLSIB_COLORS][rows].push_back(coloridx);
+                  }
+               }
+            }
+         }
+
+         if (have_stimsibs)
+         {
+             // stim -> ctrl sib
+            citerstimsib = dispCells[STIMSIB_COLORS].find(curr_clust);
+            if (citerstimsib != dispCells[STIMSIB_COLORS].end())
+            {
+               for (cell=citerstimsib->second.begin(); cell != citerstimsib->second.end(); ++cell)
+               {
+                  if (cell->rl == 0.0 && cell->dp == 0.0 && cell->ap == 0.0)
+                     continue;
+                  if ((exp_on_off.size() == 0) || exp_on_off[cell->expidx])
+                  {
+                     cthCoords[STIMSIB_PTS].push_back(glm::vec3(cell->rl, -cell->dp, -cell->ap));
+                     cthColorIdx[STIMSIB_COLORS][0].push_back(cell->coloridx*COLOR_STEPS);
+                  }
+               }
+                  // optional bin colors
+               for (curr_bin=0,rows = 1; rows <= numBins; ++curr_bin,++rows)
+               {
+                  for (ClusterIter normiter=citerstimsib->second.begin(); normiter != citerstimsib->second.end(); ++normiter)
+                  {
+                     normval = normiter->normCth[curr_bin];
+                     coloridx = floor((COLOR_STEPS-1) - (normval*(COLOR_STEPS-1)));
+                     if (coloridx >= COLOR_STEPS) // handle zero case
+                         coloridx = COLOR_STEPS-1;
+                     coloridx += COLOR_STEPS * normiter->coloridx; // offset into table
+                     cthColorIdx[STIMSIB_COLORS][rows].push_back(coloridx);
+                  }
+               }
+            }
+         }
+
             // generate a [pt list] [ color list] so we have a total of
-            // at least one list if no CTH data,  OR 1 for each bin
+            // at least one list if no CTH data, OR 1 for each bin
             // total # of VAOs for this cluster is # of cths
          err_chk = glGetError(); // clear errors
 
@@ -1214,6 +1293,17 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
          {
             s_coord_bytes = cthCoords[STIM_PTS].size() * sizeof(glm::vec3); 
             s_color_bytes = cthColorIdx[STIM_COLORS][0].size() * sizeof(coloridx);
+         }
+
+         if (have_ctrlsibs)
+         {
+            csib_coord_bytes = cthCoords[CTRLSIB_PTS].size() * sizeof(glm::vec3); 
+            csib_color_bytes = cthColorIdx[CTRLSIB_COLORS][0].size() * sizeof(coloridx);
+         }
+         if (have_stimsibs)
+         {
+            ssib_coord_bytes = cthCoords[STIMSIB_PTS].size() * sizeof(glm::vec3); 
+            ssib_color_bytes = cthColorIdx[STIMSIB_COLORS][0].size() * sizeof(coloridx);
          }
 
          for (set = 0; set < tot_vaos; ++set)
@@ -1230,6 +1320,15 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
             glBindBuffer(GL_ARRAY_BUFFER,sphere_norm_vbo); // sphere normals
             glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
             glEnableVertexAttribArray(1);
+
+             // Note: the hard-wired numbers, such as this 
+             //                        V
+             //  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+             //  glEnableVertexAttribArray(2);
+             //  glVertexAttribDivisor(2,1); 
+             // are the ids for the vbos.
+             // They have to match the same hardwired numbers in the glsl
+             // shaders that use the vbo contents. 
 
             if (have_ctl && c_coord_bytes)
             {
@@ -1265,12 +1364,50 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
                glVertexAttribDivisor(6,1); // 1 color index per sphere instance
             }
 
+            if (have_ctrlsibs && csib_coord_bytes)
+            {
+                // ctrl->stim sib
+               glGenBuffers(1,&csib_pt_vbo);       // cell coords
+               glBindBuffer(GL_ARRAY_BUFFER,csib_pt_vbo);
+               glBufferData(GL_ARRAY_BUFFER,csib_coord_bytes,cthCoords[CTRLSIB_PTS].data(),GL_STATIC_DRAW);
+               glVertexAttribPointer(10, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+               glEnableVertexAttribArray(10);
+               glVertexAttribDivisor(10,1); // 1 position per sphere instance
+
+               glGenBuffers(1,&csib_color_vbo);       // cell color indexes
+               glBindBuffer(GL_ARRAY_BUFFER,csib_color_vbo);
+               glBufferData(GL_ARRAY_BUFFER,csib_color_bytes,cthColorIdx[CTRLSIB_COLORS][set].data(),GL_STATIC_DRAW);
+               glVertexAttribIPointer(8, 1, GL_INT, 0, nullptr);
+               glEnableVertexAttribArray(8);
+               glVertexAttribDivisor(8,1); // 1 color index per sphere instance
+            }
+
+            if (have_stimsibs && ssib_coord_bytes)
+            {
+                // stim->ctrl sib
+               glGenBuffers(1,&ssib_pt_vbo);
+               glBindBuffer(GL_ARRAY_BUFFER,ssib_pt_vbo);
+               glBufferData(GL_ARRAY_BUFFER,ssib_coord_bytes,cthCoords[STIMSIB_PTS].data(),GL_STATIC_DRAW);
+               glVertexAttribPointer(11, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+               glEnableVertexAttribArray(11);
+               glVertexAttribDivisor(11,1);
+
+               glGenBuffers(1,&ssib_color_vbo);
+               glBindBuffer(GL_ARRAY_BUFFER,ssib_color_vbo);
+               glBufferData(GL_ARRAY_BUFFER,ssib_color_bytes,cthColorIdx[STIMSIB_COLORS][set].data(),GL_STATIC_DRAW);
+               glVertexAttribIPointer(9, 1, GL_INT, 0, nullptr);
+               glEnableVertexAttribArray(9);
+               glVertexAttribDivisor(9,1);
+            }
+
             err_chk = glGetError();
             if (err_chk != 0)
                cout << "error update cells 2 is: " << err_chk << endl;
 
             glCTH point = { newVao,{cthCoords[CONTROL_PTS].size(),
                                     cthCoords[STIM_PTS].size(),
+                                    cthCoords[CTRLSIB_PTS].size(),
+                                    cthCoords[STIMSIB_PTS].size(),
                                     0}};  // painting list, no delta so far
             cellsVao[curr_clust].push_back(point);
             err_chk = glGetError();
@@ -1346,7 +1483,7 @@ void BrainStemGL::updateCells(bool new_file, bool exp_chg, bool delta_cths, vect
             glVertexAttribDivisor(7,1); // 1 color index per sphere instance
 
              // we become the last "cluster"
-            glCTH point = {newVao,0,0,cthCoords[DELTA_PTS].size()};
+            glCTH point = {newVao,0,0,0,0,cthCoords[DELTA_PTS].size()};
             cellsVao[curr_clust].push_back(point);
          }
       }
@@ -1379,7 +1516,6 @@ void BrainStemGL::createShades(ClustRGB& rgbClustMap)
    ClustRGBIter rgbIter;
    glm::vec3 hsv;
    glm::vec3 newrgb;
-   glm::vec3 one_rgb;
    glm::vec3 one_hsv;
    colorBright shade;
    glm::vec3 gamma(1.0/2.2);
@@ -1547,13 +1683,19 @@ void BrainStemGL::paintGL()
       case CONTROL_STEREO:  // do Y rotation offset
       case STIM_STEREO:
       case DELTA_STEREO:
+      case CTRLSIB_STEREO:
+      case STIMSIB_STEREO:
          RY_3D = glm::rotate(glm::mat4(1.0f),glm::radians(view_roty_3D+angle),glm::vec3(0.0,1.0,0.0));
          break;
 
-      case CTL_STIM_PAIR:   // no Y offset
+      case CTRL_STIM_PAIR:   // no Y offset
       case CONTROL_ONLY:
       case STIM_ONLY:
       case DELTA_ONLY:
+      case CTRLSIB_PAIR:
+      case CTRLSIB_ONLY:
+      case STIMSIB_PAIR:
+      case STIMSIB_ONLY:
       default:
           RY_3D  = glm::rotate(glm::mat4(1.0f),glm::radians(view_roty+angle),glm::vec3(0.0,1.0,0.0));
    }
@@ -1684,10 +1826,10 @@ void BrainStemGL::paintGL()
                 // for this case, draw 1st coord/color list in 1st viewport, 
                 // then switch mode and draw again using 2nd coord/color 
                 // list in 2nd viewport
-               case CTL_STIM_PAIR:
+               case CTRL_STIM_PAIR:
                   if (iter->second[currCycle].cellSize[CONTROL_PTS])
                   {
-                     mode=CTL_PART;
+                     mode=CTRL_PART;
                      glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
                      stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(mode),
                                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
@@ -1713,6 +1855,67 @@ void BrainStemGL::paintGL()
                   memcpy(stereo_ptr,&stereoMode,sizeof(stereoMode));
                   glUnmapBuffer(GL_UNIFORM_BUFFER);
                   break;
+
+               case CTRLSIB_PAIR:
+                  if (iter->second[currCycle].cellSize[CONTROL_PTS])
+                  {
+                     mode=CTRL_PART;
+                     glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                     stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(mode),
+                                   GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                     memcpy(stereo_ptr,&mode,sizeof(mode));
+                     glUnmapBuffer(GL_UNIFORM_BUFFER);
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[CONTROL_PTS]);
+                  }
+
+                  if (iter->second[currCycle].cellSize[CTRLSIB_PTS])
+                  {
+                     mode=CTRLSIB_PART;
+                     glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                     stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(mode),
+                                   GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                     memcpy(stereo_ptr,&mode,sizeof(mode));
+                     glUnmapBuffer(GL_UNIFORM_BUFFER);
+
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[CTRLSIB_PTS]);
+                  }
+                  glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                  stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(stereoMode),
+                                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                  memcpy(stereo_ptr,&stereoMode,sizeof(stereoMode));
+                  glUnmapBuffer(GL_UNIFORM_BUFFER);
+                  break;
+
+               case STIMSIB_PAIR:
+                  if (iter->second[currCycle].cellSize[STIMSIB_PTS])
+                  {
+                     mode=STIMSIB_PART;
+                     glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                     stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(mode),
+                                   GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                     memcpy(stereo_ptr,&mode,sizeof(mode));
+                     glUnmapBuffer(GL_UNIFORM_BUFFER);
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[STIMSIB_PTS]);
+                  }
+
+                  if (iter->second[currCycle].cellSize[STIM_PTS])
+                  {
+                     mode=STIM_PART;
+                     glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                     stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(mode),
+                                   GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                     memcpy(stereo_ptr,&mode,sizeof(mode));
+                     glUnmapBuffer(GL_UNIFORM_BUFFER);
+
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[STIM_PTS]);
+                  }
+                  glBindBufferBase(GL_UNIFORM_BUFFER,sUboBlkId,sUboBuff);
+                  stereo_ptr = glMapBufferRange(GL_UNIFORM_BUFFER,0,sizeof(stereoMode),
+                                            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                  memcpy(stereo_ptr,&stereoMode,sizeof(stereoMode));
+                  glUnmapBuffer(GL_UNIFORM_BUFFER);
+                  break;
+
                case CONTROL_ONLY:
                case CONTROL_STEREO:
                   if (iter->second[currCycle].cellSize[CONTROL_PTS])
@@ -1731,6 +1934,17 @@ void BrainStemGL::paintGL()
                      glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[DELTA_PTS]);
                   break;
 
+               case CTRLSIB_ONLY:
+               case CTRLSIB_STEREO:
+                  if (iter->second[currCycle].cellSize[CTRLSIB_PTS])
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[CTRLSIB_PTS]);
+                  break;
+
+               case STIMSIB_ONLY:
+               case STIMSIB_STEREO:
+                  if (iter->second[currCycle].cellSize[STIMSIB_PTS])
+                     glDrawArraysInstanced(GL_TRIANGLES,0,sphereSize, iter->second[currCycle].cellSize[STIMSIB_PTS]);
+                  break;
             }
          }
       }
@@ -1896,11 +2110,22 @@ void BrainStemGL::updateRegions(BrainSel& sel)
 void BrainStemGL::toggleStereo(STEREO_MODE mode)
 {
    stereoMode = mode;
-   if (mode == CONTROL_STEREO || mode == CTL_STIM_PAIR || mode == STIM_STEREO || mode == DELTA_STEREO)
-      stereoViewports = 2;
-   else
-      stereoViewports = 1;
-
+   switch (mode)
+   {
+      case CONTROL_STEREO:
+      case CTRL_STIM_PAIR: 
+      case STIM_STEREO:
+      case DELTA_STEREO:
+      case CTRLSIB_STEREO:
+      case STIMSIB_STEREO:
+      case CTRLSIB_PAIR:
+      case STIMSIB_PAIR:
+         stereoViewports = 2;
+         break;
+      default: 
+         stereoViewports = 1;
+         break;
+   }
    GLfloat box_aspect = (1.0-(1.0/((GLfloat)DRAWBOX_W/DRAWBOX_H)))/stereoViewports;
    drawBox[1] = drawBox[4] = drawBox[16] = box_aspect;
 

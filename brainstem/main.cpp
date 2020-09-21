@@ -15,19 +15,20 @@ This file is part of the USF Brainstem Data Visualization suite.
     You should have received a copy of the GNU General Public License
     along with the suite.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include "brainstem.h"
+
 #include <QApplication>
+#include <QSurface>
 #include <QSurfaceFormat>
 #include <QGLFormat>
-#include <glm/glm.hpp>
+#include "brainstem.h"
 
 bool Debug = false;
+using namespace std;
 
 int main(int argc, char *argv[])
 {
-//   QApplication app(argc, argv);
-
    QSurfaceFormat format;
+
    format = QSurfaceFormat::defaultFormat();
    if (argc > 1)
    {
@@ -38,14 +39,11 @@ int main(int argc, char *argv[])
          Debug = true;
       }
    }
-
-   //cout << "format opt is: " << format.options() << endl;
-   //cout << "format profile 1 is: " << format.profile() << endl;
    format.setProfile(QSurfaceFormat::CoreProfile);
    format.setVersion(4,3);
    QSurfaceFormat::setDefaultFormat(format);
 
-   QApplication app(argc, argv);
+   QApplication app(argc, argv); // have to do the above before making this
 
    if (!QGLFormat::hasOpenGL())
    {
@@ -104,7 +102,7 @@ int main(int argc, char *argv[])
    {
       QMessageBox msgBox;
       msgBox.setStandardButtons(QMessageBox::Ok);
-      msgBox.setText("This application cannot run on this system because it does not support direct rendering");
+      msgBox.setText("This application cannot run on this system because it does not support direct rendering.");
       msgBox.exec();
       exit(1);
    }

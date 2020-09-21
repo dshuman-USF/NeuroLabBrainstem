@@ -1832,6 +1832,8 @@ font-style:bold
     <addaction name="actionLoad_Figure_Settings"/>
     <addaction name="actionSave_Figure_Settings"/>
     <addaction name="separator"/>
+    <addaction name="actionSaveClustComp"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuSave_Formats">
@@ -1966,6 +1968,17 @@ font-style:bold
   <action name="actionSave_Figure_Settings">
    <property name="text">
     <string>Save Figure Settings</string>
+   </property>
+  </action>
+  <action name="actionSaveClustComp">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Save Cluster Compare Report</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;If both Control and Stim periods are in the input file, this generates a report of the control and stem cells and the clusters they are in.&lt;/p&gt;&lt;p&gt;This is a text file using the name of the input file as the default filename.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
  </widget>

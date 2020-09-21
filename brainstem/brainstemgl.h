@@ -60,29 +60,27 @@ This file is part of the USF Brainstem Data Visualization suite.
 #include <time.h>
 #endif
 
-using namespace std;
-
 #include "brainstem.h"
 
 const GLenum PrintTexture = GL_TEXTURE0;
 const GLenum ListTexture = GL_TEXTURE1;
 
 using glCTH = struct glCTHStruct {GLuint vao; size_t cellSize[NUM_PT_LISTS];}; 
-using cellList = vector<GLint>;
+using cellList = std::vector<GLint>;
 using cellListIter = cellList::iterator;
 
-using vaoCellList = map<int, std::vector<glCTH>>;
+using vaoCellList = std::map<int, std::vector<glCTH>>;
 using vaoCellListIter = vaoCellList::iterator;
-using vaoCellInsert = pair<int, glCTH>;
+using vaoCellInsert = std::pair<int, glCTH>;
 
-using colorBright = vector<glm::vec4>;
+using colorBright = std::vector<glm::vec4>;
 using colorBrightIter = colorBright::iterator;
 
 // for create lists of data in a format we can
 // send to openGL
-using ptCoords = vector<glm::vec3>;
+using ptCoords = std::vector<glm::vec3>;
 using ptCoordsIter = ptCoords::iterator;
-using colorIdx = vector<vector<GLint> >; 
+using colorIdx = std::vector<std::vector<GLint> >; 
 using colorIdxIter = colorIdx::iterator; 
 
 class oneStruct
@@ -96,19 +94,20 @@ class oneStruct
 const int MAX_FB_WIDTH=2048;  // 4K displays or many monitors overflow
 const int MAX_FB_HEIGHT=2048; // buffers, clip physical screen to this.
 
-// shaders use this for building OIT linked lists
+// Shaders use this for building Order Independent Transparency (OIT) linked lists
 struct oitNode {
    glm::vec4 color;
    GLfloat depth;
    GLuint next;
 };
-const GLint OIT_NODE_SIZE=5*sizeof(GLfloat)+sizeof(GLuint); // glsl thinks above struct 
-                                                            // is this big
+
+// glsl thinks the above struct is this big
+const GLint OIT_NODE_SIZE=5*sizeof(GLfloat)+sizeof(GLuint); 
 const GLuint MAX_OIT_NODES = 27 * MAX_FB_WIDTH*MAX_FB_HEIGHT;  // max nodes
 
-using brainStructs = vector<oneStruct>; 
-using structuresFirst = vector<GLint>;
-using structuresCount = vector<GLsizei>;
+using brainStructs = std::vector<oneStruct>; 
+using structuresFirst = std::vector<GLint>;
+using structuresCount = std::vector<GLsizei>;
 
 class BrainStem;
 
@@ -173,7 +172,7 @@ class BrainStemGL : public QOpenGLWidget, protected QOpenGLFunctions_4_3_Core
       void rotateY();
       void rotateZ();
       void toggleStereo(STEREO_MODE);
-      void updateCells(bool,bool,bool,vector<int>&,vector<int>&,cellArray&,ClustRGB&,bool);
+      void updateCells(bool,bool,bool,std::vector<int>&,std::vector<int>&,cellArray&,ClustRGB&,bool);
       void createShades(ClustRGB&);
       void updateCellProg();
       void doToggleColorCycling(bool);
@@ -340,7 +339,7 @@ class BrainStemGL : public QOpenGLWidget, protected QOpenGLFunctions_4_3_Core
       colorBright deltaShadeTab;
       GLuint *vboPointList=nullptr; 
       GLuint *vboColorList=nullptr; 
-      vector<int>onOff;
+      std::vector<int>onOff;
       GLuint cellVShader=0;
       GLuint cellGShader=0;
       GLuint cellFShader=0;

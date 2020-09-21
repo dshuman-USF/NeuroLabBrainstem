@@ -12,10 +12,13 @@ AM_CFLAGS = $(DEBUG_OR_NOT) -Wall -std=c99
 bin_PROGRAMS = brainstem brainstem.exe
 noinst_PROGRAMS = stem2gl obj2c outlines2obj
 dist_bin_SCRIPTS = 
-dist_pkgdata_DATA=brainstem.desktop brainstem.png allexp-100_ctl.csv allexp-100_cco2.csv  allexp-100_vco2.csv
-dist_doc_DATA = brainstem.odt brainstem.pdf ChangeLog HOWTO_BUILD_FOR_WIN COPYING LICENSE COPYRIGHTS README.md
+dist_pkgdata_DATA=brainstem.desktop brainstem.png allexp-100_ctl.csv \
+						allexp-100_cco2.csv allexp-100_vco2.csv \
+						ReleaseNotes.odt ReleaseNotes.pdf  \
+                  brainstem_win_$(VERSION).zip 
+dist_doc_DATA = ChangeLog HOWTO_BUILD_FOR_WIN COPYING LICENSE COPYRIGHTS README.md
 
-BUILT_SOURCES = ui_brainstem.h qrc_brainstem.cpp moc_brainstem.cpp moc_brainstemgl.cpp moc_helpbox.cpp ui_helpbox.h all_structures.c sphere.c
+BUILT_SOURCES = ui_brainstem.h qrc_brainstem.cpp moc_brainstem.cpp moc_brainstemgl.cpp moc_helpbox.cpp ui_helpbox.h all_structures.c sphere.c Makefile.qt Makefile_win.qt
 
 brainstem_LDADD = -lX11 -lGL -lm 
 
@@ -37,6 +40,7 @@ brainstem_code = main.cpp \
                     phrenic_scaled_norm_transp_b.png \
                     phrenic_scaled_norm_transp_w.png \
                     phrenic_scaled_norm_transp_green.png \
+                    nophrenic_transp.png \
                     brainstem.ui \
                     helpbox.ui \
 						  sphere.object \
@@ -54,8 +58,6 @@ brainstem_exe_SOURCES = $(brainstem_SOURCES) brainstem.pro
 # they need to be in the clean list so making the dist succeeds
 CLEANFILES = ${BUILT_SOURCES} \
 				 $(MSWIN_DIR)/*.o \
-				Makefile.qt \
-				Makefile_win.qt \
 				brainstem_plugin_import.cpp \
 				object_script.brainstem 
 
@@ -63,10 +65,9 @@ EXTRA_DIST = debian \
 				 brainstem.exe \
 				 ffmpeg.exe 
 
-brainstem_CXXFLAGS = $(DEBUG_OR_NOT) -Wall -std=gnu++17 `pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL` -m64 -pipe -Wall -W -D_REENTRANT -fPIC ${DEFINES}
+brainstem_CXXFLAGS = $(DEBUG_OR_NOT) -Wall -std=gnu++17 `pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL` -m64 -pipe -Wall -Wno-deprecated-copy -W -D_REENTRANT -fPIC ${DEFINES}
 brainstem_LDFLAGS = `pkg-config --libs Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL Qt5PrintSupport`  -lGL -lpthread  -lqscintilla2_qt5
-
-stem2gl_CXXFLAGS = $(DEBUG_OR_NOT) -Wall -std=gnu++17 `pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL` -m64 -pipe -Wall -W -D_REENTRANT -fPIC ${DEFINES}
+stem2gl_CXXFLAGS = $(DEBUG_OR_NOT) -Wall -std=gnu++17 `pkg-config --cflags Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL` -m64 -pipe -Wall -Wno-deprecated-copy -W -D_REENTRANT -fPIC ${DEFINES}
 stem2gl_LDFLAGS = `pkg-config --libs Qt5Gui Qt5Core Qt5Widgets Qt5OpenGL Qt5PrintSupport`  -lGL -lpthread 
 
 obj2c_CXXFLAGS = $(DEBUG_OR_NOT) -Wall -std=gnu++17 -Wall -W -D_REENTRANT -fPIC ${DEFINES}
@@ -96,6 +97,15 @@ Makefile.qt: Makefile brainstem.pro outlines2obj.pro stem2gl.pro
 
 Makefile_win.qt: Makefile
 	x86_64-w64-mingw32.static-qmake-qt5 $(srcdir)/brainstem.pro -r -spec win32-g++ 'DEFINES+=VERSION=\\\"$(VERSION)\\\"'
+
+
+WINDOWS_FILES=brainstem.exe brainstem.png allexp-100_ctl.csv allexp-100_cco2.csv allexp-100_vco2.csv ReleaseNotes.odt ReleaseNotes.pdf
+
+zipit:
+	make brainstem_win_$(VERSION).zip
+
+brainstem_win_$(VERSION).zip: $(WINDOWS_FILES)
+	zip brainstem_win_$(VERSION).zip $(WINDOWS_FILES)
 
 brainstem.exe$(EXEEXT): mswin Makefile_win.qt $(brainstem_SOURCES)
  ifdef MXE_QMAKE

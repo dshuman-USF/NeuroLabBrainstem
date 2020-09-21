@@ -46,7 +46,7 @@ BrainStem::BrainStem(QWidget *parent) : QMainWindow(parent), ui(new Ui::BrainSte
    setWindowTitle(title);
 
    loadSettings();
-
+   loadCombo();
    masterTimer = new QTimer(this);
    masterTimer->setTimerType(Qt::PreciseTimer);
    connect(masterTimer,SIGNAL(timeout()),this,SLOT(timerFired()));
@@ -393,4 +393,9 @@ void BrainStem::on_actionSave_Figure_Settings_triggered()
 void BrainStem::on_brainStemGL_resized()
 {
    forceEven();
+}
+
+void BrainStem::on_actionSaveClustComp_triggered()
+{
+   doSaveClusComp();
 }

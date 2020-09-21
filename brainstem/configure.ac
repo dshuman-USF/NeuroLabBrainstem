@@ -1,5 +1,5 @@
 AC_PREREQ([2.67])
-AC_INIT([brainstem],[1.1.12],[dshuman@usf.edu])
+AC_INIT([brainstem],[1.1.13],[dshuman@usf.edu])
 AM_INIT_AUTOMAKE()
 AC_CONFIG_SRCDIR(brainstem.cpp)
 AC_CONFIG_HEADERS([config.h])

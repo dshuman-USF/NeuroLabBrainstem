@@ -46,8 +46,6 @@ This file is part of the USF Brainstem Data Visualization suite.
 #include <ios>
 #include <iostream>
 
-using namespace std;
-
 const QString csvFile("CSV");
 const QString dxFile("DX");
 
@@ -57,33 +55,73 @@ const int DELTA_FLAG = -1;  // several places use this to detect delta CTHs.
 // will need to be changed.
 // It is not impossible, but kind of a pain to share a src file
 // between two packages and two languages.
-enum CTL_STIMS {CONTROL_PERIOD=0, CTL_CCO2, STIM_CCO2, CTL_VCO2, STIM_VCO2, CTL_TBCGH, STIM_TBCGH, CTL_LARCGH, STIM_LARCGH, CS_DELTA,CTL_SWALLOW1,STIM_SWALLOW1,CTL_LAREFLEX,STIM_LAREFLEX,MAX_PERIODS};
-const QString PeriodNames[]={"CONTROL","CCO2CTL","CCO2STIM","VCO2CTL","VCO2STIM","TBCGHCTL","TBCGHSTIM","LARCGHCTL","LARCGHSTIM","CS-DELTA","CONTROL","SWALLOW1STIM","CONTROL","LAREFLEXSTIM","UNKN"};
-enum CELL_COLORS {CONTROL_COLORS,STIM_COLORS,DELTA_COLORS,NUM_CELL_COLORS};
-enum CELL_PTS {CONTROL_PTS,STIM_PTS,DELTA_PTS,NUM_PT_LISTS};
+
+enum CTRL_STIMS {CONTROL_PERIOD=0, CTRL_CCO2, STIM_CCO2, CTRL_VCO2, STIM_VCO2,
+                 CTRL_TBCGH, STIM_TBCGH, CTRL_LARCGH, STIM_LARCGH,
+                 CS_DELTA,CTRL_SWALLOW1,STIM_SWALLOW1,CTRL_LAREFLEX,
+                 STIM_LAREFLEX,MAX_PERIODS};
+
+const QString PeriodNames[]={
+   "CONTROL","CCO2CTL","CCO2STIM","VCO2CTL", "VCO2STIM",
+   "TBCGHCTL","TBCGHSTIM","LARCGHCTL","LARCGHSTIM",
+   "CS-DELTA","CONTROL","SWALLOW1STIM","CONTROL","LAREFLEXSTIM","UNKN"};
+
+// assumes delta is last in enums
+enum CELL_COLORS { CONTROL_COLORS, STIM_COLORS,
+                   CTRLSIB_COLORS, STIMSIB_COLORS, DELTA_COLORS, NUM_CELL_COLORS};
+enum CELL_PTS { CONTROL_PTS, STIM_PTS, CTRLSIB_PTS,
+                STIMSIB_PTS, DELTA_PTS, NUM_PT_LISTS};
 
 // strings used in combo box
 const QString selCONTROL("Control");
 const QString selSTIM("Stim");
-const QString selBOTH("Ctl/Stim");
+const QString selBOTH("Ctrl/Stim");
 const QString selDELTA("CS-Delta");
-const QString selCTLSWALLOW1("Ctl Swallow1");
+const QString selCTRLSWALLOW1("Ctrl Swallow1");
 const QString selSTIMSWALLOW1("Stim Swallow1");
-const QString selLAREFLEX("Ctl Lareflex");
+const QString selLAREFLEX("Ctrl Lareflex");
 const QString selLAREFLEXSTIM("Stim Lareflex");
-enum SHOW_CELLS {NO_CELLS=0,CONTROL_CELLS,STIM_CELLS,BOTH_CELLS,DELTA_CELLS};
-enum STEREO_MODE {CONTROL_ONLY=0,CONTROL_STEREO,CTL_STIM_PAIR,CTL_PART,STIM_PART,STIM_ONLY,STIM_STEREO,DELTA_ONLY,DELTA_STEREO};
-/*
-CONTROL_ONLY     0
-CONTROL_STEREO   1
-CTL_STIM_PAIR    2
-CTL_PART         3
-STIM_PART        4
-STIM_ONLY        5
-STIM_STEREO      6
-DELTA_ONLY       7
-DELTA_STEREO     8
-*/
+const QString selCTRLSIB("Ctrl->Stim Siblings");
+const QString selSTIMSIB("Stim->Ctrl Siblings");
+const QString selCTRLSIBONLY("Stim Siblings");
+const QString selSTIMSIBONLY("Ctrl Siblings");
+
+// matches the above
+enum comboPick { pickControl,pickStim,pickBoth,pickDelta,
+                 pickCtrlSwallow1,pickStimSwallow1,pickCtrlLareflex,
+                 pickStimLareflex,pickCtrlSib,pickStimSib,
+                 pickCtrlSibOnly,pickStimSibOnly};
+
+
+enum SHOW_CELLS {
+   NO_CELLS=0,
+   CONTROL_CELLS,
+   STIM_CELLS,
+   BOTH_CELLS,
+   DELTA_CELLS,
+   CTRL_SIB_CELLS,
+   STIM_SIB_CELLS};
+
+enum STEREO_MODE {
+   CONTROL_ONLY=0, // 0
+   CONTROL_STEREO, // 1
+   CTRL_STIM_PAIR, // 2
+   CTRL_PART,      // 3
+   STIM_PART,      // 4
+   STIM_ONLY,      // 5
+   STIM_STEREO,    // 6
+   DELTA_ONLY,     // 7
+   DELTA_STEREO,   // 8
+   CTRLSIB_PAIR,   // 9
+   CTRLSIB_ONLY,   // 10
+   CTRLSIB_STEREO, // 11
+   CTRLSIB_PART,   // 12
+   STIMSIB_PAIR,   // 13
+   STIMSIB_ONLY,   // 14
+   STIMSIB_STEREO, // 15
+   STIMSIB_PART    // 16
+};
+
 
 // given rgb color, find cluster #
 class rgbLookUp
@@ -107,16 +145,16 @@ class CompRGB
 {
    public:
       bool operator() (rgbLookUp const& lhs, rgbLookUp const& rhs) const
-      { return tie(lhs.r,lhs.g,lhs.b) < tie(rhs.r,rhs.g,rhs.b); }
+      { return std::tie(lhs.r,lhs.g,lhs.b) < std::tie(rhs.r,rhs.g,rhs.b); }
 };
 
 
-using RGBClust = map <rgbLookUp,int,CompRGB>;
+using RGBClust = std::map <rgbLookUp,int,CompRGB>;
 using RGBClustIter = RGBClust::iterator;
-using RGBInsert  = pair<RGBClustIter,bool>;
+using RGBInsert  = std::pair<RGBClustIter,bool>;
 
 // Given cluster #, find rgb color, the reverse of the above
-using ClustRGB = map <int,rgbLookUp>;
+using ClustRGB = std::map <int,rgbLookUp>;
 using ClustRGBIter = ClustRGB::iterator;
 
 
@@ -153,11 +191,11 @@ class CompXYZ
    public:
       bool operator() (xyzCoords const& lhs, xyzCoords const& rhs) const
       {
-         return tie(lhs.x,lhs.y,lhs.z) < tie(rhs.x,rhs.y,rhs.z); 
+         return std::tie(lhs.x,lhs.y,lhs.z) < std::tie(rhs.x,rhs.y,rhs.z);
       }
 };
 
-using coordKey = tuple<double,double,double>;
+using coordKey = std::tuple<double,double,double>;
 
 class aCell
 {
@@ -173,11 +211,11 @@ class compCell {
    public:
       bool operator() (aCell const& lhs, aCell const& rhs) const
       {
-         return tie(lhs.expname,lhs.chan) < tie(rhs.expname,rhs.chan); 
+         return std::tie(lhs.expname,lhs.chan) < std::tie(rhs.expname,rhs.chan);
       }
 };
 
-using aCellKey = pair<QString,int>;
+using aCellKey = std::pair<QString,int>;
 
 class jitter
 {
@@ -190,26 +228,26 @@ class jitter
       double jit_z;
 };
 
-using cellMap = map <aCell,jitter,compCell>;
-using cellPtMap = map <xyzCoords,cellMap,CompXYZ>;
+using cellMap = std::map <aCell,jitter,compCell>;
+using cellPtMap = std::map <xyzCoords,cellMap,CompXYZ>;
 using cellMapIter = cellMap::iterator;
 using cellPtMapIter = cellPtMap::iterator;
 
 // DX files have no experiments or periods, just colors and locations
-using dxCellPtMap = set <xyzCoords,CompXYZ>;
+using dxCellPtMap = std::set <xyzCoords,CompXYZ>;
 using dxCellPtMapIter = dxCellPtMap::iterator;
 
 // set of experiment names
-using expNameSet = map <QString,int>;
+using expNameSet = std::map <QString,int>;
 using expNameIter = expNameSet::iterator;
-using expNameInsert = pair<expNameIter,bool>;
+using expNameInsert = std::pair<expNameIter,bool>;
 
-using CTH = vector <double>;
+using CTH = std::vector <double>;
 using CTHIter = CTH::iterator;
 
 // If archetype clustering, the archtype # that corresponds to the
 // color order, that is, color 1 is archetype 4.
-using archType = set <int>;
+using archType = std::set <int>;
 using archTypeIter = archType::iterator;
 
 
@@ -217,19 +255,19 @@ class OneRec
 {
    public:
       OneRec() { };
-      OneRec(string n0,int mc0, double ap0, double rl0, double dp0,string dc0, string rf0,
+      OneRec(std::string n0,int mc0, double ap0, double rl0, double dp0,std::string dc0, std::string rf0,
              double r0,double g0,double b0,int cidx, int arch, int eidx, CTH c0) :
              name(n0),mchan(mc0),ap(ap0),rl(rl0),dp(dp0),dchan(dc0),ref(rf0),
              r(r0),g(g0),b(b0),coloridx(cidx),archetype(arch),expidx(eidx),cth(c0) {} ;
       virtual ~OneRec() { };
 
-      string name;
+      std::string name;
       int mchan;
       double ap;
       double rl;
       double dp;
-      string dchan;
-      string ref;
+      std::string dchan;
+      std::string ref;
       double r;
       double g;
       double b;
@@ -244,18 +282,20 @@ class OneRec
       enum DX_COLOR { DX_R=0,DX_G,DX_B };
 };
 
-using Cluster = vector <OneRec>;
+using Cluster = std::vector <OneRec>;
 using ClusterIter = Cluster::iterator;
 
-using Cells = map <int,Cluster>;
+using Cells = std::map <int,Cluster>;
 using CellIter = Cells::iterator;
-using cellArray = array <Cells,CELL_COLORS::NUM_CELL_COLORS>;
+using cellArray = std::array <Cells,CELL_COLORS::NUM_CELL_COLORS>;
 
-using BrainSel = vector<int>;
+using BrainSel = std::vector<int>;
 using BrainSelIter = BrainSel::iterator;
 
-using NameSel = vector<int>;
-using NameSelIter = BrainSel::iterator;
+using NameSel = std::vector<int>;
+using NameSelIter = NameSel::iterator;
+
+using comboList = std::map<QString,comboPick>;
 
 namespace Ui {
 class BrainStem;
@@ -349,8 +389,9 @@ class BrainStem : public QMainWindow
       void on_actionLoad_Figure_Settings_triggered();
       void on_actionSave_Figure_Settings_triggered();
       void on_brainStemGL_resized();
+      void on_actionSaveClustComp_triggered();
 
-protected:
+   protected:
       void closeEvent(QCloseEvent *evt);
 
    private:
@@ -359,6 +400,7 @@ protected:
      ClustRGB clustRGBMap;
      cellArray dispCells;
      archType archTypeNames;
+     QString  inName;
 
        // brain regions
      QSignalMapper *checksMapper;
@@ -408,12 +450,14 @@ protected:
      void checksPlease();
      void updateCells(bool,bool);
      void createCycles();
-
+     void createSibLists();
+     bool isStereo();
      BrainSel brainShow;   // current selected rows
      BrainSel brainCheck;  // which ones are checked
 
      NameSel expNameShow;
      NameSel expNameCheck;
+     comboList comboLookup;
 
      bool haveDelta = false;
      STEREO_MODE stereoMode;
@@ -422,6 +466,7 @@ protected:
        // handle signals from UI
      bool doQuit();
      void loadSettings();
+     void loadCombo();
      void doMenuOpen();
      void doMenuClose();
      void doToggleAxes();
@@ -482,6 +527,9 @@ protected:
      void loadFigureSettings();
      void saveFigureSettings();
      void forceEven();
+     void doSaveClusComp();
+     QString lookupExpName(int);
+     QString lookupClusterName(int);
 };
 
 

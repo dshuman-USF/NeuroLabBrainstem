@@ -45,6 +45,14 @@ This file is part of the USF Brainstem Data Visualization suite.
    stereo = 6  stim stereo 
    stereo = 7  delta only
    stereo = 8  delta stereo
+   stereo = 9  ctrlsib pair 
+   stereo = 10 ctrlsib only 
+   stereo = 11 ctrlsib stereo
+   stereo = 12 ctrl sib part of ctrlsib pair (draw on 2nd pass, right viewport)
+   stereo = 13 stimsib pair
+   stereo = 14 stimsib only
+   stereo = 15 stimsib stereo
+   stereo = 16 simsib part of ctrlsib pair (draw on 1st viewport, left viewport)
 */
 
 // V shader for oulines and axes
@@ -69,6 +77,14 @@ R"(
 #define STIM_STEREO      6
 #define DELTA_ONLY       7
 #define DELTA_STEREO     8
+#define CTRLSIB_PAIR     9
+#define CTRLSIB_ONLY    10
+#define CTRLSIB_STEREO  11
+#define CTRLSIB_PART    12
+#define STIMSIB_PAIR    13
+#define STIMSIB_ONLY    14
+#define STIMSIB_STEREO  15
+#define STIMSIB_PART    16
 layout (lines) in;
 layout (invocations = 2) in;
 layout (line_strip, max_vertices=2) out;
@@ -78,7 +94,9 @@ void main() {
    int i;
    bool is_stereo;
    if (stereo==CONTROL_STEREO || stereo==CTL_STIM_PAIR || 
-       stereo==STIM_STEREO || stereo==DELTA_STEREO)
+       stereo==STIM_STEREO || stereo==DELTA_STEREO || 
+       stereo==CTRLSIB_PAIR || stereo==STIMSIB_PAIR ||
+       stereo==CTRLSIB_STEREO || stereo==STIMSIB_STEREO)
       is_stereo = true;
    else
      is_stereo=false;
@@ -178,21 +196,33 @@ layout (location = 4) in vec3 cell_pos2;    // delta
 layout (location = 5) in int colorsel0;     // control
 layout (location = 6) in int colorsel1;     // stim
 layout (location = 7) in int colorsel2;     // delta
+layout (location = 8) in int colorsel3;     // ctrlsib
+layout (location = 9) in int colorsel4;     // stimsib
+layout (location = 10)in vec3 cell_pos3;    // ctrlsib
+layout (location = 11)in vec3 cell_pos4;    // stimsib
 layout (location = 4) uniform int scale=90;
 out flat int ctl_cidx;
 out flat int stim_cidx;
 out flat int delta_cidx;
+out flat int ctrlsib_cidx;
+out flat int stimsib_cidx;
 out flat vec4 ctl_pos;
 out flat vec4 stim_pos;
 out flat vec4 delta_pos;
+out flat vec4 ctrlsib_pos;
+out flat vec4 stimsib_pos;
 out vec3 colornorm;
 void main() {
-   ctl_pos    = vec4((vp/scale + cell_pos0),1.0);
-   stim_pos   = vec4((vp/scale + cell_pos1),1.0);
-   delta_pos  = vec4((vp/scale + cell_pos2),1.0);
+   ctl_pos     = vec4((vp/scale + cell_pos0),1.0);
+   stim_pos    = vec4((vp/scale + cell_pos1),1.0);
+   delta_pos   = vec4((vp/scale + cell_pos2),1.0);
+   ctrlsib_pos = vec4((vp/scale + cell_pos3),1.0);
+   stimsib_pos = vec4((vp/scale + cell_pos4),1.0);
    ctl_cidx   = colorsel0;
    stim_cidx  = colorsel1;
    delta_cidx = colorsel2;
+   ctrlsib_cidx = colorsel3;
+   stimsib_cidx = colorsel4;
    colornorm  = norm;
 }
 )";
@@ -212,6 +242,14 @@ R"(
 #define STIM_STEREO      6
 #define DELTA_ONLY       7
 #define DELTA_STEREO     8
+#define CTRLSIB_PAIR     9
+#define CTRLSIB_ONLY    10
+#define CTRLSIB_STEREO  11
+#define CTRLSIB_PART    12
+#define STIMSIB_PAIR    13
+#define STIMSIB_ONLY    14
+#define STIMSIB_STEREO  15
+#define STIMSIB_PART    16
 layout(triangles, invocations=2) in;
 layout(triangle_strip,max_vertices=3) out;
 layout (location=5) uniform bool hideOff = false;
@@ -223,10 +261,14 @@ layout (binding=4) uniform useStereo {int stereo;};
 in flat int ctl_cidx[];
 in flat int stim_cidx[];
 in flat int delta_cidx[];
-in vec3 colornorm[];
+in flat int ctrlsib_cidx[];
+in flat int stimsib_cidx[];
 in flat vec4 ctl_pos[];
 in flat vec4 stim_pos[];
 in flat vec4 delta_pos[];
+in flat vec4 ctrlsib_pos[];
+in flat vec4 stimsib_pos[];
+in vec3 colornorm[];
 out vec4 c_color;
 out vec3 c_norm;
 void main() {
@@ -237,13 +279,15 @@ void main() {
    bool ctlstim=false;
    bool second_list=false;
    if (stereo==CONTROL_STEREO || stereo==CTL_STIM_PAIR || 
-       stereo==STIM_STEREO || stereo==DELTA_STEREO)
-      is_stereo = true;
+       stereo==STIM_STEREO || stereo==DELTA_STEREO || 
+       stereo==CTRLSIB_PAIR || stereo==STIMSIB_PAIR || 
+       stereo==CTRLSIB_STEREO || stereo==STIMSIB_STEREO)
+      is_stereo=true;
    else
       is_stereo=false;
 
       // draw ctl pts & colors in this mode
-   if (stereo==CTL_PART || stereo==STIM_PART)
+   if (stereo==CTL_PART || stereo==STIM_PART || stereo == CTRLSIB_PART || stereo == STIMSIB_PART)
    {
       if (stereo==CTL_PART && gl_InvocationID==0) // ctl pts on 1st pass
       {
@@ -287,6 +331,48 @@ void main() {
          }
          EndPrimitive();
       }
+      else if (stereo==CTRLSIB_PART && gl_InvocationID==1) // ctl sib pts 
+      {
+         for (i = 0; i < gl_in.length(); i++)
+         {
+            gl_Position = mvp[gl_InvocationID] * ctrlsib_pos[i];
+            gl_ViewportIndex = gl_InvocationID;
+            c_norm = normalize(mat3(mv[gl_InvocationID])*colornorm[i]);
+            gcidx = ctrlsib_cidx[i];
+            c_color = ctab[gcidx];
+            if (hideOff == true && drawpt == true) // once false always false
+            {
+               if ((c_color[0] == 0.0) && (c_color[1] == 0.0) && (c_color[2] == 0.0))
+                  drawpt = false;
+            }
+            if (drawpt == true)
+            {
+               EmitVertex();
+            }
+         }
+         EndPrimitive();
+      }
+      else if (stereo==STIMSIB_PART && gl_InvocationID==0) // stimsib pts/colors
+      {
+         for (i = 0; i < gl_in.length(); i++)
+         {
+            gl_Position = mvp[gl_InvocationID] * stimsib_pos[i];
+            gl_ViewportIndex = gl_InvocationID;
+            c_norm = normalize(mat3(mv[gl_InvocationID])*colornorm[i]);
+            gcidx = stimsib_cidx[i];
+            c_color = ctab[gcidx];
+            if (hideOff == true && drawpt == true) // once false always false
+            {
+               if ((c_color[0] == 0.0) && (c_color[1] == 0.0) && (c_color[2] == 0.0))
+                  drawpt = false;
+            }
+            if (drawpt == true)
+            {
+               EmitVertex();
+            }
+         }
+         EndPrimitive();
+      }
    }
    else if (is_stereo || ((!is_stereo) && gl_InvocationID == 0))
    {
@@ -310,7 +396,18 @@ void main() {
             gcidx = delta_cidx[i];
             c_color = dtab[gcidx];
          }
-
+         else if (stereo==CTRLSIB_ONLY || stereo==CTRLSIB_STEREO)
+         {
+            gl_Position = mvp[gl_InvocationID] * ctrlsib_pos[i];
+            gcidx = ctrlsib_cidx[i];
+            c_color = ctab[gcidx];
+         }
+         else if (stereo==STIMSIB_ONLY || stereo==STIMSIB_STEREO)
+         {
+            gl_Position = mvp[gl_InvocationID] * stimsib_pos[i];
+            gcidx = stimsib_cidx[i];
+            c_color = ctab[gcidx];
+         }
          gl_ViewportIndex = gl_InvocationID;
          c_norm = normalize(mat3(mv[gl_InvocationID])*colornorm[i]);
          if (hideOff == true && drawpt == true) // once false always false
@@ -465,6 +562,14 @@ R"(
 #define STIM_STEREO      6
 #define DELTA_ONLY       7
 #define DELTA_STEREO     8
+#define CTRLSIB_PAIR     9
+#define CTRLSIB_ONLY    10
+#define CTRLSIB_STEREO  11
+#define CTRLSIB_PART    12
+#define STIMSIB_PAIR    13
+#define STIMSIB_ONLY    14
+#define STIMSIB_STEREO  15
+#define STIMSIB_PART    16
 layout(triangles, invocations=2) in;
 layout(triangle_strip,max_vertices=3) out;
 layout (std140,binding=1) uniform vertexUbo{ mat4 mvp[2];};
@@ -476,7 +581,9 @@ void main() {
    int i;
    bool is_stereo;
    if (stereo==CONTROL_STEREO || stereo==CTL_STIM_PAIR || 
-       stereo==STIM_STEREO || stereo==DELTA_STEREO)
+       stereo==STIM_STEREO || stereo==DELTA_STEREO ||
+       stereo==CTRLSIB_PAIR || stereo==STIMSIB_PAIR ||
+       stereo==CTRLSIB_STEREO || stereo==STIMSIB_STEREO)
       is_stereo = true;
    else
       is_stereo=false;
@@ -579,6 +686,14 @@ R"(
 #define STIM_STEREO      6
 #define DELTA_ONLY       7
 #define DELTA_STEREO     8
+#define CTRLSIB_PAIR     9
+#define CTRLSIB_ONLY    10
+#define CTRLSIB_STEREO  11
+#define CTRLSIB_PART    12
+#define STIMSIB_PAIR    13
+#define STIMSIB_ONLY    14
+#define STIMSIB_STEREO  15
+#define STIMSIB_PART    16
 layout(triangles, invocations=2) in;
 layout(triangle_strip,max_vertices=3) out;
 layout (std140,binding=1) uniform vertexUbo { mat4 mvp[2];};
@@ -590,7 +705,9 @@ void main() {
    int i;
    bool is_stereo;
    if (stereo==CONTROL_STEREO || stereo==CTL_STIM_PAIR || 
-       stereo==STIM_STEREO || stereo==DELTA_STEREO)
+       stereo==STIM_STEREO || stereo==DELTA_STEREO ||
+       stereo==CTRLSIB_PAIR || stereo==STIMSIB_PAIR || 
+       stereo==CTRLSIB_STEREO || stereo==STIMSIB_STEREO)
       is_stereo = true;
    else
       is_stereo=false;
@@ -686,6 +803,14 @@ R"(
 #define STIM_STEREO      6
 #define DELTA_ONLY       7
 #define DELTA_STEREO     8
+#define CTRLSIB_PAIR     9
+#define CTRLSIB_ONLY    10
+#define CTRLSIB_STEREO  11
+#define CTRLSIB_PART    12
+#define STIMSIB_PAIR    13
+#define STIMSIB_ONLY    14
+#define STIMSIB_STEREO  15
+#define STIMSIB_PART    16
 layout(triangles, invocations=2) in;
 layout(triangle_strip,max_vertices=3) out;
 layout (binding=4) uniform useStereo{ int stereo;};
@@ -693,7 +818,9 @@ void main() {
    int i;
    bool is_stereo;
    if (stereo==CONTROL_STEREO || stereo==CTL_STIM_PAIR || 
-       stereo==STIM_STEREO || stereo==DELTA_STEREO)
+       stereo==STIM_STEREO || stereo==DELTA_STEREO ||
+       stereo==CTRLSIB_PAIR || stereo==STIMSIB_PAIR || 
+       stereo==CTRLSIB_STEREO || stereo==STIMSIB_STEREO)
       is_stereo = true;
    else
       is_stereo=false;

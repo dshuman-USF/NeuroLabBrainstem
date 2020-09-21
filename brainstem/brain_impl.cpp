@@ -34,6 +34,8 @@ This file is part of the USF Brainstem Data Visualization suite.
 #include "ui_brainstem.h"
 #include "helpbox.h"
 
+using namespace std;
+
 // what text color contrasts best with this background?
 rgbLookUp TextContrast(rgbLookUp color)
 {
@@ -116,6 +118,22 @@ void BrainStem::loadSettings()
    }
 }
 
+void BrainStem::loadCombo()
+{
+   comboLookup[selCONTROL]= pickControl;
+   comboLookup[selSTIM] = pickStim;
+   comboLookup[selBOTH] = pickBoth;
+   comboLookup[selDELTA] = pickDelta;
+   comboLookup[selCTRLSWALLOW1] = pickCtrlSwallow1;
+   comboLookup[selSTIMSWALLOW1] = pickStimSwallow1;
+   comboLookup[selLAREFLEX] = pickCtrlLareflex;
+   comboLookup[selLAREFLEXSTIM] = pickStimLareflex;
+   comboLookup[selCTRLSIB] = pickCtrlSib;
+   comboLookup[selSTIMSIB] = pickStimSib;
+   comboLookup[selCTRLSIBONLY] =pickCtrlSibOnly;
+   comboLookup[selSTIMSIBONLY] =pickStimSibOnly;
+}
+
 bool BrainStem::doQuit()
 {
    if (movieState != OFF)
@@ -163,6 +181,7 @@ void BrainStem::doMenuOpen()
    bool ok = true;
    pauseTimers();
 
+   inName.clear();
    QString fName = QFileDialog::getOpenFileName(this,
                       tr("Select CSV file to load"), "./", "CSV and DX Files (*.csv *.dx)");
    if (fName.length())
@@ -181,6 +200,7 @@ void BrainStem::doMenuOpen()
       }
       if (ok)
       {
+         inName = readInfo.completeBaseName();
          QDir::setCurrent(readInfo.canonicalPath()); // make src the cwd
          if (ext.compare(csvFile,Qt::CaseInsensitive) == 0)
             ok = readCSV(file,justName);
@@ -205,6 +225,8 @@ void BrainStem::doMenuClose()
    ui->brainStemGL->toggleStereo(stereoMode);
    ui->boxCtlStim->clear();
    ui->toggleStereo->setEnabled(false);
+   ui->actionSaveClustComp->setEnabled(false);
+   inName.clear();
 }
 
 void BrainStem::doAllOn()
@@ -271,9 +293,20 @@ void BrainStem::doToggleStereo()
       case DELTA_STEREO:
          stereoMode = DELTA_ONLY;
          break;
+      case CTRLSIB_ONLY:
+         stereoMode = CTRLSIB_STEREO;
+         break;
+      case CTRLSIB_STEREO:
+         stereoMode = CTRLSIB_ONLY;
+         break;
+      case STIMSIB_ONLY:
+         stereoMode = STIMSIB_STEREO;
+         break;
+      case STIMSIB_STEREO:
+         stereoMode = STIMSIB_ONLY;
+         break;
       default:
-      case CTL_STIM_PAIR:  // shouldn't be here, can't do stereo when showing pairs
-         cout << "doToggleStereo unexpected state" << endl;
+         cout << "doToggleStereo unexpected state: " << stereoMode << endl;
          break;
    }
    ui->brainStemGL->toggleStereo(stereoMode);
@@ -373,6 +406,7 @@ bool BrainStem::readCSV(QFile& file, QString& name)
    for (int cells=CELL_COLORS::CONTROL_COLORS; cells < CELL_COLORS::NUM_CELL_COLORS; ++cells)
       dispCells[cells].clear();
 
+     // fill the dispCells array(s)
    for ( ; iter != rows.end(); ++iter)
    {
       row = iter->toLatin1().constData();
@@ -437,7 +471,7 @@ bool BrainStem::readCSV(QFile& file, QString& name)
                     rgbLook.g, // fields[OneRec::G].toDouble(),
                     color_idx,
                     archetype,
-                    nameIter->second,
+                    nameIter->second,  // expidx
                     CTH() 
                   };
 
@@ -491,9 +525,9 @@ bool BrainStem::readCSV(QFile& file, QString& name)
       if (color_idx != DELTA_FLAG)  // no clusters/colors lookup for deltas
          clustRGBMap.insert(make_pair(color_idx,rgbLook));
       if (period == PeriodNames[CONTROL_PERIOD] ||
-          period == PeriodNames[CTL_CCO2] || period == PeriodNames[CTL_VCO2] ||
-          period == PeriodNames[CTL_TBCGH] || period == PeriodNames[CTL_LARCGH] ||
-          period == PeriodNames[CTL_SWALLOW1] || period == PeriodNames[CTL_LAREFLEX])
+          period == PeriodNames[CTRL_CCO2] || period == PeriodNames[CTRL_VCO2] ||
+          period == PeriodNames[CTRL_TBCGH] || period == PeriodNames[CTRL_LARCGH] ||
+          period == PeriodNames[CTRL_SWALLOW1] || period == PeriodNames[CTRL_LAREFLEX])
       {
          dispCells[CONTROL_COLORS][color_idx].push_back(aRec);
       }
@@ -512,20 +546,23 @@ bool BrainStem::readCSV(QFile& file, QString& name)
          cout << "Unsupported period type, case not handled" << period.toLatin1().constData()  << endl;
          continue;
       }
-      if (period == PeriodNames[CTL_SWALLOW1] || period == PeriodNames[STIM_SWALLOW1] ||
-          period == PeriodNames[CTL_LAREFLEX] || period == PeriodNames[STIM_LAREFLEX])
+      if (period == PeriodNames[CTRL_SWALLOW1] || period == PeriodNames[STIM_SWALLOW1] ||
+          period == PeriodNames[CTRL_LAREFLEX] || period == PeriodNames[STIM_LAREFLEX])
          havePhrenic = false;
       ++totpts;
    }
 
+   createSibLists();
+
     // what can you choose from in combo box?
    ui->toggleStereo->setEnabled(true);
    ui->boxCtlStim->clear();
+   ui->actionSaveClustComp->setEnabled(false);
    QStringList items;
    stereoMode = CONTROL_ONLY;
    if (dispCells[CONTROL_COLORS].size() && dispCells[STIM_COLORS].size())
    {
-      stereoMode = CTL_STIM_PAIR;      // default to this if have ctl/stim
+      stereoMode = CTRL_STIM_PAIR;      // default to this if have ctl/stim
       items << selBOTH;
       ui->toggleStereo->setEnabled(false);
    }
@@ -536,6 +573,14 @@ bool BrainStem::readCSV(QFile& file, QString& name)
    if (dispCells[STIM_COLORS].size())
    {
       items << selSTIM;
+   }
+   if (dispCells[CONTROL_COLORS].size() && dispCells[STIM_COLORS].size())
+   {
+      items << selCTRLSIB;
+      items << selSTIMSIB;
+      items << selCTRLSIBONLY;
+      items << selSTIMSIBONLY;
+      ui->actionSaveClustComp->setEnabled(true);
    }
    if (dispCells[DELTA_COLORS].size())
    {
@@ -551,6 +596,7 @@ bool BrainStem::readCSV(QFile& file, QString& name)
       QStandardItem* nmstr = new QStandardItem(nameIter->first);
       nmstr->setCheckable(true);
       nmstr->setData(nameIter->second);  // exp #
+      nmstr->setText(nameIter->first);
       expNameModel->setItem(item,nmstr);
       expNameModel->item(item)->setCheckState(Qt::Checked);
    }
@@ -754,6 +800,267 @@ bool BrainStem::readDX(QFile& file,QString& name)
 }
 
 
+// Create the cluster N to sibling regardless of cluster and converse arrays.  
+// Assumes dispCells has been loaded from file.
+void BrainStem::createSibLists()
+{
+   CellIter citer, citerctl, citerstim;
+   ClusterIter ctrl, stim;
+   bool found;
+
+   // it takes two
+   if (!dispCells[CONTROL_COLORS].size() || !dispCells[STIM_COLORS].size())
+      return;
+
+    // For each control cth in cluster N, 
+    // find the same cth in stim regardless of cluster
+
+     // For all control clusters
+   for (citerctl = dispCells[CONTROL_COLORS].begin(); citerctl != dispCells[CONTROL_COLORS].end(); ++citerctl)
+   {    // for each point in current cluster
+      for (ctrl = citerctl->second.begin(); ctrl != citerctl->second.end(); ++ctrl)
+      {   // search all stim clusters and points for this point 
+         found = false;
+         for (citer = dispCells[STIM_COLORS].begin(); citer != dispCells[STIM_COLORS].end() && !found; ++citer)
+         {
+            for (stim = citer->second.begin(); stim != citer->second.end() && !found;  ++stim)
+            {
+               if (stim->name == ctrl->name && stim->mchan == ctrl->mchan && ctrl->expidx == stim->expidx)
+               {
+                  dispCells[CTRLSIB_COLORS][ctrl->coloridx].push_back(*stim);
+                  found = true;
+               }
+            }
+         }
+      }
+   }
+
+    // make stim cths -> ctl siblings
+    // for all stim clusters
+   for (citerstim = dispCells[STIM_COLORS].begin(); citerstim != dispCells[STIM_COLORS].end(); ++citerstim)
+   {
+       // for each pt in each cluster
+      for (stim=citerstim->second.begin(); stim != citerstim->second.end(); ++stim)
+      {
+         found = false;
+         // now find sibling if there is one
+         for (citer = dispCells[CONTROL_COLORS].begin(); citer != dispCells[CONTROL_COLORS].end() && !found; ++citer)
+         {
+            for (ctrl = citer->second.begin(); ctrl != citer->second.end() && !found; ++ctrl)
+            {
+               if (ctrl->name == stim->name && ctrl->mchan == stim->mchan && ctrl->expidx == stim->expidx)
+               {
+                  dispCells[STIMSIB_COLORS][stim->coloridx].push_back(*ctrl);
+                  found = true;
+               }
+            }
+         }
+      }
+   }
+}
+
+QString BrainStem::lookupClusterName(int idx)
+{
+   QString ret;
+
+   if (archTypeNames.size())
+   {
+      archTypeIter iter = archTypeNames.begin();
+      advance(iter,idx);
+      if (iter != archTypeNames.end()) // flats not on list
+         ret.setNum(*iter);
+      else
+         ret = "FLAT";
+   }
+   else 
+   {
+      if (idx < int(rgbClustMap.size())-1)
+         ret.setNum(idx+1);
+      else
+         ret = "FLAT";
+   }
+   return ret;
+}
+
+// Given an exp index, return its name
+QString BrainStem::lookupExpName(int idx)
+{
+   QString ret;
+   int expnum = expNameModel->rowCount();
+   for (int row = 0; row < expnum ; ++row)
+     if (expNameModel->item(row)->data().toInt() == idx)
+     {
+        ret = expNameModel->item(row)->text();
+        break;
+     }
+   return ret;
+}
+
+
+// Save the control and stim siblings in the selected experiments
+// to a text file.
+void BrainStem::doSaveClusComp()
+{
+   CellIter citer, citerctl, citerstim;
+   ClusterIter ctrl, stim;
+   bool found, inExp;
+   QString  clustReport;
+   QTextStream outp(&clustReport);
+   outp.setFieldAlignment(QTextStream::AlignLeft);
+
+   int expnum = expNameModel->rowCount();
+   vector<int> selNames;
+   for (int row = 0; row < expnum ; ++row)
+      if (expNameModel->item(row)->checkState() == Qt::Checked)
+         selNames.push_back(expNameModel->item(row)->data().toInt());
+
+   outp << "Cluster Change Report for " << inName << endl << endl;
+   outp << "CONTROL TO STIM" << endl;
+    // For each control cth in cluster N, 
+    // find the same cth in stim regardless of cluster
+     // for all control clusters
+   for (citerctl = dispCells[CONTROL_COLORS].begin(); citerctl != dispCells[CONTROL_COLORS].end(); ++citerctl)
+   {    // for each point in current cluster
+      if (citerctl->second.begin() != citerctl->second.end())
+          outp << endl << "CONTROL CLUSTER " 
+               << lookupClusterName(citerctl->second.begin()->coloridx) << endl
+                << qSetFieldWidth(7) << left
+                << "Name"
+                << "Chan"
+                << qSetFieldWidth(32)
+                << "Experiment"
+                << qSetFieldWidth(12) // width of "stim cluster"
+                << center << "Stim Cluster" << left 
+                << qSetFieldWidth(0) << endl;
+      for (ctrl = citerctl->second.begin(); ctrl != citerctl->second.end(); ++ctrl)
+      {   // search all stim clusters and points for this point
+         found = inExp = false;
+         for (citer = dispCells[STIM_COLORS].begin(); citer != dispCells[STIM_COLORS].end() && !found; ++citer)
+         {
+            for (stim = citer->second.begin(); stim != citer->second.end() && !found;  ++stim)
+            {
+               inExp = std::find(selNames.begin(), selNames.end(), ctrl->expidx) != selNames.end();
+               if (stim->name == ctrl->name && stim->mchan == ctrl->mchan 
+                   && ctrl->expidx == stim->expidx && inExp)
+               {
+                  found = true;
+                  outp << left 
+                       << qSetFieldWidth(7)
+                       << QString::fromStdString(ctrl->name)
+                       << ctrl->mchan
+                       << qSetFieldWidth(32) 
+                       << lookupExpName(ctrl->expidx) 
+                       << qSetFieldWidth(4) << " "
+                       << qSetFieldWidth(0) 
+                       << lookupClusterName(stim->coloridx) 
+                       << qSetFieldWidth(0) << endl;
+               }
+            }
+         }
+         if (!found && inExp)
+            outp << left 
+                 << qSetFieldWidth(7)
+                 << QString::fromStdString(ctrl->name)
+                 << ctrl->mchan
+                 << qSetFieldWidth(32) 
+                 << lookupExpName(ctrl->expidx) 
+                 << qSetFieldWidth(0) 
+                 << "Missing stim sibling"
+                 << qSetFieldWidth(0) << endl;
+      }
+   }
+
+     // make stim cths -> ctl siblings
+    // for all stim clusters
+    outp << endl << "STIM TO CONTROL" << endl;
+   for (citerstim = dispCells[STIM_COLORS].begin(); citerstim != dispCells[STIM_COLORS].end(); ++citerstim)
+   {
+      if (citerstim->second.begin() != citerstim->second.end())
+          outp << endl << "STIM CLUSTER " 
+               << lookupClusterName(citerstim->second.begin()->coloridx) << endl
+                << qSetFieldWidth(7) << left
+                << "Name"
+                << "Chan"
+                << qSetFieldWidth(32)
+                << "Experiment"
+                << qSetFieldWidth(15)
+                << center << "Control Cluster" << left 
+                << qSetFieldWidth(0) << endl; //  << flush;
+
+       // for each pt in each cluster
+      for (stim=citerstim->second.begin(); stim != citerstim->second.end(); ++stim)
+      {
+         // now find sibling if there is one
+         found = inExp = false;
+         for (citer = dispCells[CONTROL_COLORS].begin(); citer != dispCells[CONTROL_COLORS].end() && !found; ++citer)
+         {
+            for (ctrl = citer->second.begin(); ctrl != citer->second.end() && !found; ++ctrl)
+            {
+               inExp = std::find(selNames.begin(), selNames.end(), stim->expidx) != selNames.end();
+               if (ctrl->name == stim->name && ctrl->mchan == stim->mchan 
+                   && ctrl->expidx == stim->expidx && inExp)
+               {
+                  dispCells[STIMSIB_COLORS][stim->coloridx].push_back(*ctrl);
+                  found = true;
+                  outp << left 
+                       << qSetFieldWidth(7)
+                       << QString::fromStdString(stim->name)
+                       << stim->mchan
+                       << qSetFieldWidth(32) 
+                       << lookupExpName(stim->expidx) 
+                       << qSetFieldWidth(6) << " "
+                       << qSetFieldWidth(0) 
+                       << lookupClusterName(ctrl->coloridx) 
+                       << qSetFieldWidth(0) << endl;
+               }
+            }
+         }
+         if (!found && inExp)
+            outp << left 
+                 << qSetFieldWidth(7)
+                 << QString::fromStdString(stim->name)
+                 << stim->mchan
+                 << qSetFieldWidth(32) 
+                 << lookupExpName(stim->expidx) 
+                 << qSetFieldWidth(0)
+                 << "Missing control sibling"
+                 << qSetFieldWidth(0) << endl;
+      }
+   }
+
+   QString name(inName);
+   name += ".txt";
+
+   pauseTimers();
+
+   QString saveName = QFileDialog::getSaveFileName(this,
+                         tr("Save Cluster Compare Report."), 
+                         name, 
+                         tr("Cluster Compare Files (*.txt)"));
+   if (saveName.length())
+   {
+      QFile file(saveName); 
+      if (!file.open(QIODevice::WriteOnly))
+      {
+         QString msg;
+         QTextStream(&msg) << tr("Error opening file ") << saveName << endl << tr("Error is: ") << file.errorString() << endl << endl;
+         printMsg(msg);
+         return;
+      }
+      else
+      {
+         QTextStream out(&file);
+         out << clustReport;
+         QString msg("Saved cluster report to ");
+         msg += name;
+         printMsg(msg);
+      }
+      file.close();
+   }
+   restartTimers();
+}
+
+
 // dynamically create a list of checkboxes so we can turn 
 // cluster members on and off
 void BrainStem::checksPlease()
@@ -776,14 +1083,14 @@ void BrainStem::checksPlease()
    {
       if (!haveArch)
       {
-         if (stereoMode == CTL_STIM_PAIR && i == num_checks-1)
+         if (stereoMode == CTRL_STIM_PAIR && i == num_checks-1)
             cnum = tr("Flats ");
          else
             cnum = tr("Cluster ") + QString::number(i+1);
       }
       else
       {
-         if (stereoMode == CTL_STIM_PAIR && i == num_checks-1)
+         if (stereoMode == CTRL_STIM_PAIR && i == num_checks-1)
             cnum = tr("Flats ");
          else
          {
@@ -851,15 +1158,14 @@ void BrainStem::updateCells(bool new_file, bool exp_chg)
       if (current != nullptr)
          on_off[row] = current->isChecked();
    }
-//   if (haveDelta) // these are always selected
-//      on_off.push_back(true);
 
    for (row = 0; row < expnum ; ++row)
    {
       if (expNameModel->item(row)->checkState() == Qt::Checked)
          name_on_off[expNameModel->item(row)->data().toInt()] = 1;
    }
-   ui->brainStemGL->updateCells(new_file,exp_chg,haveDelta,on_off,name_on_off,dispCells,clustRGBMap,havePhrenic);
+   ui->brainStemGL->updateCells(new_file,exp_chg,haveDelta,on_off,name_on_off,
+                                dispCells,clustRGBMap,havePhrenic);
 }
 
 void BrainStem::checksClicked(int)
@@ -1659,8 +1965,8 @@ void BrainStem::doExpNameCheck(QStandardItem* item)
       {
          in_sel = true;  // clicked item must be in selection list
          break;
-      } }
-
+      } 
+   }
    if (in_sel)
    {
       expNameModel->blockSignals(true);
@@ -1745,14 +2051,96 @@ void BrainStem::doHelp()
 }
 
 
+bool BrainStem::isStereo()
+{
+   return stereoMode == CONTROL_STEREO || stereoMode == STIM_STEREO 
+       || stereoMode == DELTA_STEREO || stereoMode == CTRLSIB_STEREO 
+       || stereoMode == STIMSIB_STEREO;
+}
+
+
 // Selection made in control/ctl/stim combo
 // This only fires if we have ctl/stim cths.
 void BrainStem::doSelectCtlStim(const QString& sel)
 {
+   int choice;
+   auto lookup = comboLookup.find(sel);
+   if (lookup == comboLookup.end()) // happens due to empty list on file close
+      return;
+
+   choice = lookup->second;
+   switch (choice)
+   {
+      case pickBoth:
+         ui->toggleStereo->setEnabled(false);
+         stereoMode = CTRL_STIM_PAIR;
+         break;
+      case pickCtrlSib:
+          ui->toggleStereo->setEnabled(false);
+          stereoMode = CTRLSIB_PAIR;
+          break;
+      case pickStimSib:
+          ui->toggleStereo->setEnabled(false);
+          stereoMode = STIMSIB_PAIR;
+          break;
+      case pickControl:
+            // leave in stereo mode?
+         if (isStereo())
+            stereoMode = CONTROL_STEREO;
+         else
+            stereoMode = CONTROL_ONLY;
+         ui->toggleStereo->setEnabled(true);
+         break;
+      case pickStim:
+         if (isStereo())
+            stereoMode = STIM_STEREO;
+         else
+            stereoMode = STIM_ONLY;
+         ui->toggleStereo->setEnabled(true);
+         break;
+      case pickCtrlSibOnly: 
+         if (isStereo())
+            stereoMode = STIMSIB_STEREO;
+         else
+            stereoMode = STIMSIB_ONLY;
+         ui->toggleStereo->setEnabled(true);
+         break;
+      case pickStimSibOnly:
+         if (isStereo())
+            stereoMode = CTRLSIB_STEREO;
+         else
+            stereoMode = CTRLSIB_ONLY;
+         ui->toggleStereo->setEnabled(true);
+         break;
+      case pickDelta:
+         if (isStereo())
+            stereoMode = DELTA_STEREO;
+         else
+            stereoMode = DELTA_ONLY;
+         ui->toggleStereo->setEnabled(true);
+         break;
+      default:
+         cout << "Missed a combo box case, selection unchanged." << endl;
+         break;
+   }
+   ui->brainStemGL->showCtlStim(stereoMode);
+
+
+#if 0
    if (sel.compare(selBOTH) == 0)
    {
      ui->toggleStereo->setEnabled(false);
-     stereoMode = CTL_STIM_PAIR;
+     stereoMode = CTRL_STIM_PAIR;
+   }
+   else if (sel.compare(selCTRLSIB) == 0)
+   {
+     ui->toggleStereo->setEnabled(false);
+     stereoMode = CTRLSIB_PAIR;
+   }
+   else if (sel.compare(selSTIMSIB) == 0)
+   {
+     ui->toggleStereo->setEnabled(false);
+     stereoMode = STIMSIB_PAIR;
    }
    else if (sel.compare(selCONTROL) == 0)
    {
@@ -1775,15 +2163,32 @@ void BrainStem::doSelectCtlStim(const QString& sel)
       stereoMode = CONTROL_ONLY;
       ui->toggleStereo->setEnabled(true);
    }
+   else if (sel.compare(selCTRLSIBONLY) == 0)
+   {
+      stereoMode = STIMSIB_ONLY;
+      ui->toggleStereo->setEnabled(true);
+   }
+   else if (sel.compare(selSTIMSIBONLY) == 0)
+   {
+      stereoMode = CTRLSIB_ONLY;
+      ui->toggleStereo->setEnabled(true);
+   }
    else if (sel.compare(selDELTA) == 0)
    {
-      if (stereoMode == CONTROL_STEREO || stereoMode == STIM_STEREO)
+      if (stereoMode == CONTROL_STEREO || stereoMode == STIM_STEREO
+           || stereoMode == CTRLSIB_STEREO || stereoMode == STIMSIB_STEREO)
          stereoMode = DELTA_STEREO;
       else
          stereoMode = DELTA_ONLY;
       ui->toggleStereo->setEnabled(true);
    }
+   else
+   {
+      cout << "Missed a combo box case" << endl;
+   }
    ui->brainStemGL->showCtlStim(stereoMode);
+#endif
+
 }
 
 
